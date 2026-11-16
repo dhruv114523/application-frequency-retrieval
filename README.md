@@ -98,6 +98,8 @@ Dates are written in `YYYY-MM-DD` format and sorted chronologically.
 - If no matching emails are found, the script exits without creating an output
   CSV.
 - Network, login, and search failures are reported in the terminal.
+- Keyword matching is approximate. The search uses Gmail's `BODY "application"` match, so it counts any message containing the word, including newsletters, job alerts, receipts and software notifications. Results measure email volume mentioning "application", not job applications directly.
+- Single mailbox, INBOX only. Archived or filtered mail is not included.
 
 ## License
 

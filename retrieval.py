@@ -1,15 +1,17 @@
 from collections import defaultdict
+import csv
 from datetime import datetime
 import imaplib
 import os
 import re
 from dotenv import load_dotenv
-import csv
 
 load_dotenv()
 
 
-def count_application_emails(username, app_password, output_file="application_email_counts.csv"):
+def count_application_emails(
+    username, app_password, output_file="application_email_counts.csv"
+):
   try:
     print("Connecting to Gmail IMAP server...")
     mail = imaplib.IMAP4_SSL("imap.gmail.com")
@@ -21,8 +23,16 @@ def count_application_emails(username, app_password, output_file="application_em
     print(f"\n[ERROR] Connection or login failed: {e}")
     return
 
-  print("Searching emails for the word 'application'...")
-  status, response = mail.search(None, 'BODY "application"')
+  print(
+      "Searching emails for 'application' (excluding 'unfortunately') "
+  )
+  
+  # Search for "application" while explicitly excluding rejection keywords on the server side
+  search_query = (
+      'BODY "application" NOT BODY "unfortunately" NOT BODY "regret" NOT BODY "decline" NOT BODY "reject"'
+  )
+  status, response = mail.search(None, search_query)
+  
   if status != "OK":
     print("Search failed.")
     mail.logout()
@@ -35,18 +45,16 @@ def count_application_emails(username, app_password, output_file="application_em
     return
 
   print(
-      f"Found {len(email_ids)} matching emails. Fetching dates in bulk (fast"
-      " mode)..."
+      f"Found {len(email_ids)} matching emails after filtering. Fetching dates"
+      " in bulk..."
   )
   date_counts = defaultdict(int)
 
-  # Process in batches of 200 to speed up network calls
   batch_size = 200
   for i in range(0, len(email_ids), batch_size):
     batch = email_ids[i : i + batch_size]
     id_str = b",".join(batch)
 
-    # Fetch INTERNALDATE in bulk instead of parsing individual message headers
     status, msg_data = mail.fetch(id_str, "(INTERNALDATE)")
     if status != "OK":
       continue
@@ -67,13 +75,14 @@ def count_application_emails(username, app_password, output_file="application_em
 
   mail.logout()
 
+  # Write filtered results to CSV
   with open(output_file, mode="w", newline="", encoding="utf-8") as csv_file:
     writer = csv.writer(csv_file)
     writer.writerow(["Date", "Count"])
     for date, count in sorted(date_counts.items()):
       writer.writerow([date, count])
 
-  print(f"\nDone! Results saved to {output_file}")
+  print(f"\nDone! Filtered results saved to {output_file}")
 
 
 if __name__ == "__main__":
